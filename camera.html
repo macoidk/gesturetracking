@@ -13,7 +13,7 @@
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #188e76; /* Змініть цей колір для зміни фону сайту */
+            background-color: #f0f0f0;
         }
         h1 {
             text-align: center;
@@ -31,24 +31,29 @@
             margin-top: 20px;
             font-size: 24px;
             font-weight: bold;
-            color: #070707;  /* Колір тексту жесту (128, 128, 0) в шістнадцятковому форматі */
-            
+            color: #808000;
+        }
+        #error {
+            color: red;
+            font-weight: bold;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <h1>gesture tracking</h1>
+    <h1>Розпізнавання жестів</h1>
     <canvas id="output" width="640" height="480"></canvas>
     <div id="gesture"></div>
+    <div id="error"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
 
     <script>
-        const videoElement = document.createElement('video');
         const canvasElement = document.getElementById('output');
         const canvasCtx = canvasElement.getContext('2d');
         const gestureElement = document.getElementById('gesture');
+        const errorElement = document.getElementById('error');
 
         function getAngle(p1, p2, p3) {
             const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x);
@@ -124,7 +129,7 @@
         }
 
         const hands = new Hands({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`;
         }});
         hands.setOptions({
             maxNumHands: 2,
@@ -134,14 +139,26 @@
         });
         hands.onResults(onResults);
 
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({image: videoElement});
-            },
-            width: 640,
-            height: 480
-        });
-        camera.start();
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const camera = new Camera(canvasElement, {
+                onFrame: async () => {
+                    await hands.send({image: canvasElement});
+                },
+                width: 640,
+                height: 480
+            });
+            camera.start()
+                .then(() => {
+                    console.log('Camera started successfully');
+                })
+                .catch(error => {
+                    console.error('Error starting camera:', error);
+                    errorElement.textContent = `Помилка: ${error.message}. Будь ласка, переконайтеся, що ви надали дозвіл на доступ до камери.`;
+                });
+        } else {
+            console.error('getUserMedia is not supported');
+            errorElement.textContent = 'Ваш браузер не підтримує доступ до камери.';
+        }
     </script>
 </body>
 </html>
