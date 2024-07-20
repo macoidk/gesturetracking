@@ -13,7 +13,7 @@
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #238369; /* Змініть цей колір для зміни фону сайту */
+            background-color: #238369;
         }
         h1 {
             text-align: center;
@@ -31,7 +31,12 @@
             margin-top: 20px;
             font-size: 24px;
             font-weight: bold;
-            color: #070707; /* Колір тексту жесту (128, 128, 0) в шістнадцятковому форматі */
+            color: #070707;
+        }
+        #cameraSelect {
+            margin-top: 10px;
+            padding: 5px;
+            font-size: 16px;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -40,6 +45,7 @@
 </head>
 <body>
     <h1>Розпізнавання жестів</h1>
+    <select id="cameraSelect" style="display: none;"></select>
     <canvas id="output" width="640" height="480"></canvas>
     <div id="gesture"></div>
 
@@ -48,6 +54,44 @@
         const canvasElement = document.getElementById('output');
         const canvasCtx = canvasElement.getContext('2d');
         const gestureElement = document.getElementById('gesture');
+
+        let currentCameraIndex = 0;
+        let videoDevices = [];
+
+        async function getVideoDevices() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            return devices.filter(device => device.kind === 'videoinput');
+        }
+
+        async function initializeCamera(deviceId = null) {
+            const constraints = {
+                video: deviceId ? {deviceId: {exact: deviceId}} : true
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            videoElement.srcObject = stream;
+            await videoElement.play();
+        }
+
+        async function setupCameras() {
+            videoDevices = await getVideoDevices();
+            const cameraSelect = document.getElementById('cameraSelect');
+            
+            if (videoDevices.length > 1) {
+                cameraSelect.style.display = 'block';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                
+                cameraSelect.addEventListener('change', (event) => {
+                    initializeCamera(event.target.value);
+                });
+            }
+            
+            await initializeCamera(videoDevices[0].deviceId);
+        }
 
         function getAngle(p1, p2, p3) {
             const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x);
@@ -133,14 +177,16 @@
         });
         hands.onResults(onResults);
 
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({image: videoElement});
-            },
-            width: 640,
-            height: 480
+        setupCameras().then(() => {
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({image: videoElement});
+                },
+                width: 640,
+                height: 480
+            });
+            camera.start();
         });
-        camera.start();
     </script>
 </body>
 </html>
